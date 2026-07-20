@@ -1,0 +1,45 @@
+{
+    "colors": {},
+    "tokenColors": [
+        {
+            "scope": "keyword.control.autoit",
+            "settings": { "foreground": "#4F8FFF" }
+        },
+        {
+            "scope": "support.function.autoit",
+            "settings": { "foreground": "#E0E0E0" }
+        },
+        {
+            "scope": "support.function.method.autoit",
+            "settings": { "foreground": "#C468BC" }
+        },
+        {
+            "scope": "string.quoted.double.autoit",
+            "settings": { "foreground": "#D16D6D" }
+        },
+        {
+            "scope": "comment.line.autoit",
+            "settings": { "foreground": "#808080" }
+        },
+        {
+            "scope": "variable.other.macro.autoit",
+            "settings": { "foreground": "#80C0C0" }
+        },
+        {
+            "scope": "constant.numeric.autoit",
+            "settings": { "foreground": "#8AA0C0" }
+        },
+        {
+            "scope": "constant.language.autoit",
+            "settings": { "foreground": "#8AA0C0" }
+        },
+        {
+            "scope": "keyword.operator.autoit",
+            "settings": { "foreground": "#B0B0B0" }
+        },
+        {
+            "scope": "meta.preprocessor.autoit",
+            "settings": { "foreground": "#D16D6D", "fontStyle": "bold" }
+        }
+    ]
+}

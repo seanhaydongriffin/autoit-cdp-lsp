@@ -1,0 +1,111 @@
+{
+    "scopeName": "source.autoit",
+    "patterns": [
+        { "include": "#comments" },
+        { "include": "#strings" },
+        { "include": "#numbers" },
+        { "include": "#operators" },
+        { "include": "#keywords" },
+        { "include": "#constants" },
+        { "include": "#macros" },
+        { "include": "#variables" },
+        { "include": "#preprocessor" },
+        { "include": "#functions" }
+    ],
+    "repository": {
+        "comments": {
+            "patterns": [
+                {
+                    "name": "comment.line.autoit",
+                    "match": ";.*$"
+                }
+            ]
+        },
+
+        "strings": {
+            "patterns": [
+                {
+                    "name": "string.quoted.double.autoit",
+                    "begin": "\"",
+                    "end": "\""
+                }
+            ]
+        },
+
+        "numbers": {
+            "patterns": [
+                {
+                    "name": "constant.numeric.autoit",
+                    "match": "\\b(0x[0-9A-Fa-f]+|\\d+\\.\\d+|\\d+)\\b"
+                }
+            ]
+        },
+
+        "operators": {
+            "patterns": [
+                {
+                    "name": "keyword.operator.autoit",
+                    "match": "(\\+|\\-|\\*|\\/|&|=|<>|<=|>=|<|>)"
+                }
+            ]
+        },
+
+        "keywords": {
+            "patterns": [
+                {
+                    "name": "keyword.control.autoit",
+                    "match": "\\b(If|Then|Else|EndIf|For|Next|While|WEnd|Func|EndFunc|Return|Switch|Case|EndSwitch|Do|Until|With|EndWith)\\b"
+                }
+            ]
+        },
+
+        "constants": {
+            "patterns": [
+                {
+                    "name": "constant.language.autoit",
+                    "match": "\\b(True|False|Null)\\b"
+                }
+            ]
+        },
+
+        "macros": {
+            "patterns": [
+                {
+                    "name": "variable.other.macro.autoit",
+                    "match": "@[A-Za-z0-9_]+"
+                }
+            ]
+        },
+
+        "variables": {
+            "patterns": [
+                {
+                    "name": "variable.other.autoit",
+                    "match": "\\$[A-Za-z_][A-Za-z0-9_]*"
+                }
+            ]
+        },
+
+        "preprocessor": {
+            "patterns": [
+                {
+                    "name": "meta.preprocessor.autoit",
+                    "match": "#(include|include-once|Region|EndRegion|pragma)\\b"
+                }
+            ]
+        },
+
+        "functions": {
+            "patterns": [
+                {
+                    "name": "support.function.autoit",
+                    "match": "\\b[A-Za-z_][A-Za-z0-9_]*(?=\\()"
+                },
+                {
+                    "name": "support.function.method.autoit",
+                    "match": "\\.[A-Za-z_][A-Za-z0-9_]*(?=\\()"
+                }
+            ]
+        }
+    }
+}

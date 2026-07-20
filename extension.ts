@@ -1,0 +1,174 @@
+import * as path from 'path';
+import { workspace, ExtensionContext, window, commands } from 'vscode';
+import {
+    LanguageClient,
+    LanguageClientOptions,
+    ServerOptions,
+    TransportKind
+} from 'vscode-languageclient/node';
+
+let client: LanguageClient;
+let runningProcesses: any[] = [];
+const isWindows = process.platform === 'win32';
+
+export function activate(context: ExtensionContext) {
+    const serverModule = context.asAbsolutePath(
+        path.join('out', 'server', 'server.js')
+    );
+
+    const serverOptions: ServerOptions = {
+        run: { module: serverModule, transport: TransportKind.ipc },
+        debug: { module: serverModule, transport: TransportKind.ipc }
+    };
+
+    const clientOptions: LanguageClientOptions = {
+        documentSelector: [{ scheme: 'file', language: 'autoit' }],
+        synchronize: {
+            fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
+        }
+    };
+
+    client = new LanguageClient(
+        'autoitLanguageServer',
+        'AutoIt Language Server',
+        serverOptions,
+        clientOptions
+    );
+
+    client.start();
+
+    // Output channel for run/check
+    const out = window.createOutputChannel('AutoIt');
+    context.subscriptions.push(out);
+
+    function killRunningProcesses() {
+        if (runningProcesses.length === 0) {
+            out.appendLine('No AutoIt processes are currently running.');
+            return;
+        }
+
+        out.appendLine('Stopping AutoIt processes...');
+        runningProcesses.forEach((proc) => {
+            try {
+                if (isWindows) {
+                    const kill = require('child_process').spawn('taskkill', ['/PID', proc.pid.toString(), '/T', '/F']);
+                    kill.on('close', (code: number | null) => {
+                        out.appendLine(`taskkill exited with code ${code}`);
+                    });
+                } else {
+                    proc.kill('SIGTERM');
+                }
+            } catch (err: any) {
+                out.appendLine(`Failed to stop process ${proc.pid}: ${err.message}`);
+            }
+        });
+        runningProcesses = [];
+    }
+
+    // Register run command (F5)
+    const runCmd = commands.registerCommand('autoit-lsp.runScript', async () => {
+        const editor = window.activeTextEditor;
+        if (!editor) {
+            window.showErrorMessage('No active editor to run');
+            return;
+        }
+
+        const doc = editor.document;
+        if (doc.isUntitled) {
+            window.showErrorMessage('Please save the script before running.');
+            return;
+        }
+
+        // Save the document first
+        await doc.save();
+
+        const filePath = doc.fileName;
+
+        const cfg = workspace.getConfiguration('autoit');
+        const checkPath = cfg.get<string>('checkPath') || 'C:\\Program Files (x86)\\AutoIt3\\Au3Check.exe';
+
+        // Prefer the 32-bit AutoIt runtime (AutoIt3.exe) if present — SciTe uses it by default.
+        const configuredRunner = cfg.get<string>('runnerPath');
+        const default32 = 'C:\\Program Files (x86)\\AutoIt3\\AutoIt3.exe';
+        const default64 = 'C:\\Program Files (x86)\\AutoIt3\\autoit3_x64.exe';
+        const fs = require('fs');
+        let runnerPath = configuredRunner || '';
+        if (!runnerPath) {
+            if (fs.existsSync(default32)) runnerPath = default32;
+            else runnerPath = default64;
+        }
+
+        out.clear();
+        out.show(true);
+        //out.appendLine(`Running Au3Check: ${checkPath} ${filePath}`);
+
+        const { spawn } = require('child_process');
+
+        const childOptions = { cwd: path.dirname(filePath), env: process.env } as any;
+
+        function streamProcess(cmd: string, args: string[], onClose?: (code: number | null) => void) {
+            try {
+                const p = spawn(cmd, args, childOptions);
+                runningProcesses.push(p);
+                p.stdout.on('data', (chunk: Buffer) => out.append(chunk.toString()));
+                p.stderr.on('data', (chunk: Buffer) => out.append(chunk.toString()));
+                p.on('error', (err: any) => out.appendLine(`Failed to start ${cmd}: ${err.message}`));
+                p.on('close', (code: number | null) => {
+                    out.appendLine(`${path.basename(cmd)} exited with code ${code}`);
+                    runningProcesses = runningProcesses.filter((proc) => proc !== p);
+                    if (onClose) onClose(code);
+                });
+                return p;
+            } catch (e: any) {
+                out.appendLine(`Error spawning ${cmd}: ${e.message}`);
+                if (onClose) onClose?.(1);
+                return null;
+            }
+        }
+
+        //out.appendLine(`Spawning Au3Check: ${checkPath} ${filePath}`);
+        if (fs.existsSync(checkPath)) {
+            streamProcess(checkPath, [filePath], (code) => {
+                // After check completes, run AutoIt regardless of exit code to match SciTe behavior
+                out.appendLine(`Spawning AutoIt: ${runnerPath} "${filePath}" (cwd: ${childOptions.cwd})`);
+                streamProcess(runnerPath, [filePath]);
+            });
+        } else {
+            out.appendLine(`Au3Check not found at ${checkPath}, skipping check.`);
+            out.appendLine(`Spawning AutoIt: ${runnerPath} "${filePath}" (cwd: ${childOptions.cwd})`);
+            streamProcess(runnerPath, [filePath]);
+        }
+    });
+
+    context.subscriptions.push(runCmd);
+
+    // Register 'Go' command that delegates to the same runner (used from menu)
+    const goCmd = commands.registerCommand('autoit-lsp.go', async () => {
+        await commands.executeCommand('autoit-lsp.runScript');
+    });
+    context.subscriptions.push(goCmd);
+
+    // Register 'Start Debugging' command for Run menu to mimic SciTe's Start Debugging
+    const startDebugCmd = commands.registerCommand('autoit-lsp.startDebug', async () => {
+        await commands.executeCommand('autoit-lsp.runScript');
+    });
+    context.subscriptions.push(startDebugCmd);
+
+    // Register 'Start AutoIt' command (explicit non-debug run from Run menu)
+    const startAutoItCmd = commands.registerCommand('autoit-lsp.startAutoIt', async () => {
+        await commands.executeCommand('autoit-lsp.runScript');
+    });
+    context.subscriptions.push(startAutoItCmd);
+
+    const stopCmd = commands.registerCommand('autoit-lsp.stopScript', async () => {
+        killRunningProcesses();
+    });
+    context.subscriptions.push(stopCmd);
+}
+
+export function deactivate(): Thenable<void> | undefined {
+    if (!client) {
+        return undefined;
+    }
+    return client.stop();
+}

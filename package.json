@@ -1,0 +1,167 @@
+{
+  "name": "autoit-lsp",
+  "displayName": "autoit-lsp",
+  "description": "Minimal AutoIt Language Server with CDP-aware IntelliSense",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.125.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:autoit"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "themes": [
+        {
+            "label": "AutoIt Matte",
+            "uiTheme": "vs-dark",
+            "path": "./themes/autoit-matte-color-theme.json"
+        }
+    ],
+    "languages": [
+      {
+        "id": "autoit",
+        "aliases": [
+          "AutoIt",
+          "autoit"
+        ],
+        "extensions": [
+          ".au3"
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "command": "autoit-lsp.runScript",
+        "title": "AutoIt: Run Script"
+      },
+      {
+        "command": "autoit-lsp.stopScript",
+        "title": "Stop Script"
+      },
+      {
+        "command": "autoit-lsp.go",
+        "title": "Go"
+      },
+      {
+        "command": "autoit-lsp.startDebug",
+        "title": "Start Script"
+      },
+      {
+        "command": "autoit-lsp.startAutoIt",
+        "title": "Start AutoIt"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "autoit-lsp.runScript",
+        "key": "f5",
+        "when": "editorTextFocus && editorLangId == autoit"
+      },
+      {
+        "command": "autoit-lsp.stopScript",
+        "key": "ctrl+pause",
+        "when": "editorTextFocus && editorLangId == autoit"
+      },
+      {
+        "command": "autoit-lsp.stopScript",
+        "key": "ctrl+break",
+        "when": "editorTextFocus && editorLangId == autoit"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "autoit",
+        "scopeName": "source.autoit",
+        "path": "./syntaxes/autoit.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "properties": {
+        "autoit.checkPath": {
+          "type": "string",
+          "default": "C:\\Program Files (x86)\\AutoIt3\\Au3Check.exe",
+          "description": "Path to Au3Check.exe used for script checking"
+        },
+        "autoit.runnerPath": {
+          "type": "string",
+          "default": "C:\\Program Files (x86)\\AutoIt3\\autoit3_x64.exe",
+          "description": "Path to AutoIt runtime executable used to run scripts"
+        }
+      }
+    },
+    "menus": {
+      "menubar/run": [
+        {
+          "command": "autoit-lsp.startAutoIt",
+          "group": "1_run",
+          "when": "resourceLangId == autoit"
+        },
+        {
+          "command": "autoit-lsp.startAutoIt",
+          "group": "1_run",
+          "when": "editorLangId == autoit"
+        },
+        {
+          "command": "autoit-lsp.startDebug",
+          "group": "2_debug",
+          "when": "editorLangId == autoit"
+        }
+      ]
+      ,
+      "editor/title": [
+        {
+          "command": "autoit-lsp.startDebug",
+          "when": "editorLangId == autoit",
+          "group": "navigation"
+        },
+        {
+          "command": "autoit-lsp.stopScript",
+          "when": "editorLangId == autoit",
+          "group": "navigation"
+        }
+      ],
+      "statusBar/window": [
+        {
+          "command": "autoit-lsp.startDebug",
+          "when": "editorLangId == autoit",
+          "group": "navigation"
+        },
+        {
+          "command": "autoit-lsp.stopScript",
+          "when": "editorLangId == autoit",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.13.3",
+    "@types/vscode": "^1.125.0",
+    "eslint": "^10.5.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6"
+  },
+  "dependencies": {
+    "devtools-protocol": "^0.0.1663043",
+    "vscode-languageclient": "^10.1.0",
+    "vscode-languageserver": "^10.1.0",
+    "vscode-languageserver-textdocument": "^1.0.13"
+  }
+}

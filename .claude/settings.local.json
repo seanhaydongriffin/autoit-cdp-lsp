@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npx tsc -p C:\\\\Users\\\\SGriffin\\\\autoit-lsp\\\\tsconfig.json --noEmit 2>&1)",
+      "PowerShell(\\(Get-Content C:\\\\Users\\\\SGriffin\\\\autoit-lsp\\\\au3.api | Measure-Object -Line\\).Lines; \\(Get-Item C:\\\\Users\\\\SGriffin\\\\autoit-lsp\\\\au3.api\\).Length)",
+      "PowerShell($lines = Get-Content C:\\\\Users\\\\SGriffin\\\\autoit-lsp\\\\au3.api; $lines | Select-Object -Last 10; \"----\"; $lines | Where-Object { $_ -match '^[#@]' } | Select-Object -First 20; \"---- underscore UDFs: \" + \\($lines | Where-Object { $_ -match '^_' }\\).Count; \"---- unique first words: \" + \\(\\($lines | ForEach-Object { \\($_ -split '[ \\(]'\\)[0] } | Sort-Object -Unique\\).Count\\))",
+      "PowerShell(npx tsc -p C:\\\\Users\\\\SGriffin\\\\autoit-lsp\\\\tsconfig.json 2>&1)",
+      "PowerShell(node \"C:\\\\Users\\\\SGriffin\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-SGriffin-autoit-lsp\\\\e7b3d45d-e515-429f-9eb9-46c7f3cf1138\\\\scratchpad\\\\verify-parser.js\")"
+    ]
+  }
+}
