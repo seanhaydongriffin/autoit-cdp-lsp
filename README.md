@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # autoit-lsp README
 
 This is the README for your extension "autoit-lsp". After writing up a brief description, we recommend including the following sections.
@@ -71,5 +70,4 @@ You can author your README using Visual Studio Code. Here are some useful editor
 
 **Enjoy!**
 =======
-# autoit-cdp-lsp
->>>>>>> b1274f3d76d0fbdcb44b27fe605ddbba27299ff0
+
