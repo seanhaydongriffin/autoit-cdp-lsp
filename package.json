@@ -94,46 +94,16 @@
       }
     },
     "menus": {
-      "menubar/run": [
+      "editor/context": [
         {
-          "command": "autoit-lsp.startAutoIt",
-          "group": "1_run",
-          "when": "resourceLangId == autoit"
-        },
-        {
-          "command": "autoit-lsp.startAutoIt",
-          "group": "1_run",
-          "when": "editorLangId == autoit"
-        },
-        {
-          "command": "autoit-lsp.startDebug",
-          "group": "2_debug",
-          "when": "editorLangId == autoit"
-        }
-      ]
-      ,
-      "editor/title": [
-        {
-          "command": "autoit-lsp.startDebug",
+          "command": "autoit-lsp.runScript",
           "when": "editorLangId == autoit",
-          "group": "navigation"
+          "group": "0_autoit@1"
         },
         {
           "command": "autoit-lsp.stopScript",
           "when": "editorLangId == autoit",
-          "group": "navigation"
-        }
-      ],
-      "statusBar/window": [
-        {
-          "command": "autoit-lsp.startDebug",
-          "when": "editorLangId == autoit",
-          "group": "navigation"
-        },
-        {
-          "command": "autoit-lsp.stopScript",
-          "when": "editorLangId == autoit",
-          "group": "navigation"
+          "group": "0_autoit@2"
         }
       ]
     }

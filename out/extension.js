@@ -58,6 +58,29 @@ function activate(context) {
     // Output channel for run/check
     const out = vscode_1.window.createOutputChannel('AutoIt');
     context.subscriptions.push(out);
+    // Status bar Run/Stop buttons, shown while an AutoIt editor is active or a script is running
+    const runButton = vscode_1.window.createStatusBarItem(vscode_1.StatusBarAlignment.Left, 100);
+    runButton.text = '$(play) Run AutoIt';
+    runButton.tooltip = 'Run the current AutoIt script (F5)';
+    runButton.command = 'autoit-lsp.runScript';
+    const stopButton = vscode_1.window.createStatusBarItem(vscode_1.StatusBarAlignment.Left, 99);
+    stopButton.text = '$(debug-stop) Stop';
+    stopButton.tooltip = 'Stop running AutoIt scripts (Ctrl+Break)';
+    stopButton.command = 'autoit-lsp.stopScript';
+    context.subscriptions.push(runButton, stopButton);
+    function updateStatusBarButtons() {
+        const isAutoItEditor = vscode_1.window.activeTextEditor?.document.languageId === 'autoit';
+        if (isAutoItEditor || runningProcesses.length > 0) {
+            runButton.show();
+            stopButton.show();
+        }
+        else {
+            runButton.hide();
+            stopButton.hide();
+        }
+    }
+    updateStatusBarButtons();
+    context.subscriptions.push(vscode_1.window.onDidChangeActiveTextEditor(updateStatusBarButtons));
     function killRunningProcesses() {
         if (runningProcesses.length === 0) {
             out.appendLine('No AutoIt processes are currently running.');
@@ -81,6 +104,7 @@ function activate(context) {
             }
         });
         runningProcesses = [];
+        updateStatusBarButtons();
     }
     // Register run command (F5)
     const runCmd = vscode_1.commands.registerCommand('autoit-lsp.runScript', async () => {
@@ -120,12 +144,14 @@ function activate(context) {
             try {
                 const p = spawn(cmd, args, childOptions);
                 runningProcesses.push(p);
+                updateStatusBarButtons();
                 p.stdout.on('data', (chunk) => out.append(chunk.toString()));
                 p.stderr.on('data', (chunk) => out.append(chunk.toString()));
                 p.on('error', (err) => out.appendLine(`Failed to start ${cmd}: ${err.message}`));
                 p.on('close', (code) => {
                     out.appendLine(`${path.basename(cmd)} exited with code ${code}`);
                     runningProcesses = runningProcesses.filter((proc) => proc !== p);
+                    updateStatusBarButtons();
                     if (onClose)
                         onClose(code);
                 });

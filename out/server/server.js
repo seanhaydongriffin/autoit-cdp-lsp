@@ -77,17 +77,58 @@ connection.onHover(() => {
 });
 // Hand-maintained functions and keywords. These override same-named entries parsed from au3.api.
 const AUTOIT_FUNCTIONS = [
-    { name: "With", documentation: "", keyword: true,
-        parameters: []
-    },
+    { name: "And", documentation: "", keyword: true, parameters: [] },
+    { name: "ByRef", documentation: "", keyword: true, parameters: [] },
+    { name: "Case", documentation: "", keyword: true, parameters: [] },
+    { name: "Const", documentation: "", keyword: true, parameters: [] },
+    { name: "ContinueCase", documentation: "", keyword: true, parameters: [] },
+    { name: "ContinueLoop", documentation: "", keyword: true, parameters: [] },
+    { name: "Default", documentation: "", keyword: true, parameters: [] },
+    { name: "Dim", documentation: "", keyword: true, parameters: [] },
+    { name: "Do", documentation: "", keyword: true, parameters: [] },
+    { name: "Else", documentation: "", keyword: true, parameters: [] },
+    { name: "ElseIf", documentation: "", keyword: true, parameters: [] },
+    { name: "EndFunc", documentation: "", keyword: true, parameters: [] },
+    { name: "EndIf", documentation: "", keyword: true, parameters: [] },
+    { name: "EndSelect", documentation: "", keyword: true, parameters: [] },
+    { name: "EndSwitch", documentation: "", keyword: true, parameters: [] },
+    { name: "EndWith", documentation: "", keyword: true, parameters: [] },
+    { name: "Enum", documentation: "", keyword: true, parameters: [] },
+    { name: "Exit", documentation: "", keyword: true, parameters: [] },
+    { name: "ExitLoop", documentation: "", keyword: true, parameters: [] },
+    { name: "False", documentation: "", keyword: true, parameters: [] },
+    { name: "For", documentation: "", keyword: true, parameters: [] },
+    { name: "Func", documentation: "", keyword: true, parameters: [] },
+    { name: "Global", documentation: "", keyword: true, parameters: [] },
+    { name: "If", documentation: "", keyword: true, parameters: [] },
+    { name: "In", documentation: "", keyword: true, parameters: [] },
+    { name: "Local", documentation: "", keyword: true, parameters: [] },
+    { name: "Next", documentation: "", keyword: true, parameters: [] },
+    { name: "Not", documentation: "", keyword: true, parameters: [] },
+    { name: "Null", documentation: "", keyword: true, parameters: [] },
+    { name: "Or", documentation: "", keyword: true, parameters: [] },
+    { name: "Redim", documentation: "", keyword: true, parameters: [] },
+    { name: "Return", documentation: "", keyword: true, parameters: [] },
+    { name: "Select", documentation: "", keyword: true, parameters: [] },
+    { name: "Static", documentation: "", keyword: true, parameters: [] },
+    { name: "Step", documentation: "", keyword: true, parameters: [] },
+    { name: "Switch", documentation: "", keyword: true, parameters: [] },
+    { name: "Then", documentation: "", keyword: true, parameters: [] },
+    { name: "To", documentation: "", keyword: true, parameters: [] },
+    { name: "True", documentation: "", keyword: true, parameters: [] },
+    { name: "Until", documentation: "", keyword: true, parameters: [] },
+    { name: "Volatile", documentation: "", keyword: true, parameters: [] },
+    { name: "WEnd", documentation: "", keyword: true, parameters: [] },
+    { name: "While", documentation: "", keyword: true, parameters: [] },
+    { name: "With", documentation: "", keyword: true, parameters: [] },
     { name: "test", documentation: "Begins a named test.",
         parameters: [
-            { label: "$sName", documentation: "Name of the test." }
+            { label: "name", documentation: "Name of the test." }
         ]
     },
     { name: "teststep", documentation: "Begins a named test step.",
         parameters: [
-            { label: "$sName", documentation: "Name of the test step." }
+            { label: "name", documentation: "Name of the test step." }
         ]
     }
 ];
@@ -125,10 +166,164 @@ const METHOD_SIGNATURES_LIST = [
         parameters: [
             { label: "port", documentation: "port number of the browser" },
         ]
-    }
+    },
+    {
+        name: "goto",
+        label: "goto(url, waitForLoad = True)",
+        documentation: "Navigate to a url.",
+        parameters: [
+            { label: "url", documentation: "the url." },
+            { label: "waitForLoad", documentation: "wait for page to be loaded." }
+        ]
+    },
+    {
+        name: "locator",
+        label: "locator(selector)",
+        documentation: "Locate a page element.",
+        parameters: [
+            { label: "selector", documentation: "the selector of the element." },
+        ]
+    },
+    {
+        name: "evaluate",
+        label: "evaluate(expression)",
+        documentation: "Evaluate an expression.",
+        parameters: [
+            { label: "expression", documentation: "the expression." },
+        ]
+    },
+    {
+        name: "setContent",
+        label: "setContent(html)",
+        documentation: "Sets the content of the page.",
+        parameters: [
+            { label: "html", documentation: "the html content." },
+        ]
+    },
+    {
+        name: "waitForLoad",
+        label: "waitForLoad(timeout = $cdp.config.timeout)",
+        documentation: "Waits for the page to be loaded.",
+        parameters: [
+            { label: "timeout", documentation: "an optional timeout." },
+        ]
+    },
+    {
+        name: "screenshot",
+        label: "screenshot(path, fullPage = True)",
+        documentation: "Takes a screenshot of the page.",
+        parameters: [
+            { label: "path", documentation: "the file to output the screenshot to." },
+            { label: "fullPage", documentation: "is the screenshot full page?" },
+        ]
+    },
+    {
+        name: "waitForSelector",
+        label: "waitForSelector(selector, state = $CDPSTATE_ATTACHED, timeout = $cdp.config.timeout)",
+        documentation: "Waits for a selector on the page.",
+        parameters: [
+            { label: "selector", documentation: "the selector." },
+            { label: "state", documentation: "$CDPSTATE_ATTACHED" },
+            { label: "timeout", documentation: "an optional timeout." },
+        ]
+    },
+    {
+        name: "click",
+        label: "click(waitForLoad = False)",
+        documentation: "Click the element.",
+        parameters: [
+            { label: "waitForLoad", documentation: "wait for page to be loaded." }
+        ]
+    },
+    {
+        name: "clickAt",
+        label: "clickAt(offsetX, offsetY)",
+        documentation: "Click at an offset from the top-left of the element.",
+        parameters: [
+            { label: "offsetX", documentation: "the X offset from the top-left." },
+            { label: "offsetY", documentation: "the Y offset from the top-left." }
+        ]
+    },
+    {
+        name: "dblClick",
+        label: "dblClick(waitForLoad = False)",
+        documentation: "Double click the element.",
+        parameters: [
+            { label: "waitForLoad", documentation: "wait for page to be loaded." }
+        ]
+    },
+    {
+        name: "fill",
+        label: "fill(value)",
+        documentation: "Set a value to the input field.",
+        parameters: [
+            { label: "value", documentation: "the value to set." }
+        ]
+    },
+    {
+        name: "sendKeys",
+        label: "sendKeys(text, delay = 0)",
+        documentation: "Enters text into a field via simulated keystrokes.",
+        parameters: [
+            { label: "text", documentation: "the text to enter." },
+            { label: "delay", documentation: "an optional delay between keystrokes." },
+        ]
+    },
+    {
+        name: "setChecked",
+        label: "setChecked(state)",
+        documentation: "Set the state of a checkbox or a radio element.",
+        parameters: [
+            { label: "state", documentation: "Whether to check or uncheck the checkbox." },
+        ]
+    },
+    {
+        name: "selectOption",
+        label: "selectOption(value)",
+        documentation: "Selects option or options in <select>.",
+        parameters: [
+            { label: "value", documentation: "Option to select." },
+        ]
+    },
+    {
+        name: "getAttribute",
+        label: "getAttribute(name)",
+        documentation: "Returns the matching element's attribute value.",
+        parameters: [
+            { label: "name", documentation: "Attribute name to get the value for." },
+        ]
+    },
+    {
+        name: "screenshot",
+        label: "screenshot(path = \"\")",
+        documentation: "Take a screenshot of the element.",
+        parameters: [
+            { label: "path", documentation: "Optional file path to save the image to." },
+        ]
+    },
+    {
+        name: "waitFor",
+        label: "waitFor(state = $CDPSTATE_VISIBLE, timeout = $cdp.config.timeout)",
+        documentation: "Returns when element specified by locator satisfies the state option.",
+        parameters: [
+            { label: "state", documentation: "$CDPSTATE_ATTACHED | $CDPSTATE_DETACHED | $CDPSTATE_VISIBLE | $CDPSTATE_HIDDEN" },
+            { label: "timeout", documentation: "an optional timeout." },
+        ]
+    },
 ];
 // AutoIt is case-insensitive, so key lookups on the lowercased name.
-const METHOD_SIGNATURES = new Map(METHOD_SIGNATURES_LIST.map(f => [f.name.toLowerCase(), [f]]));
+// Duplicate names (e.g. page screenshot vs element screenshot) become overloads.
+const METHOD_SIGNATURES = new Map();
+for (const f of METHOD_SIGNATURES_LIST) {
+    const key = f.name.toLowerCase();
+    const overloads = METHOD_SIGNATURES.get(key);
+    if (overloads) {
+        overloads.push(f);
+    }
+    else {
+        METHOD_SIGNATURES.set(key, [f]);
+    }
+}
 // name (lowercased) → overloads. Built from au3.api plus AUTOIT_FUNCTIONS; keywords excluded.
 let functionSignatures = new Map();
 // Completion items for every known function and keyword, built once at startup.
@@ -195,16 +390,25 @@ function initializeAutoItApi() {
 function buildSignatureLabel(fn) {
     return fn.label ?? `${fn.name}(${fn.parameters.map(p => p.label).join(", ")})`;
 }
-// Make each method completion insert "name(" and pop parameter hints, matching function completions.
+// Make each method completion insert a call. Methods with known parameters (a METHOD_SIGNATURES
+// entry with at least one parameter) insert "name(" and pop parameter hints; the rest insert a
+// completed "name()" since there is nothing to enter.
 function withCallParens(items) {
-    return items.map(item => ({
-        ...item,
-        insertText: item.label + "(",
-        command: {
-            command: "editor.action.triggerParameterHints",
-            title: "Trigger Parameter Hints"
+    return items.map(item => {
+        const overloads = METHOD_SIGNATURES.get(item.label.toLowerCase());
+        const hasParameters = overloads?.some(o => o.parameters.length > 0) ?? false;
+        if (!hasParameters) {
+            return { ...item, insertText: item.label + "()" };
         }
-    }));
+        return {
+            ...item,
+            insertText: item.label + "(",
+            command: {
+                command: "editor.action.triggerParameterHints",
+                title: "Trigger Parameter Hints"
+            }
+        };
+    });
 }
 // Finds the call the cursor is inside by scanning backwards for the first unmatched "(".
 // isMethod is true when the call is dotted (e.g. "$cdp.browser.launch("), false for a bare call ("teststep(").
@@ -348,8 +552,6 @@ const LOCATOR_METHODS = [
     "waitFor",
     "waitForElementState",
     "waitForSelector",
-    "_locateFast",
-    "_locate",
     "filter",
     "nth",
     "first",
@@ -530,8 +732,6 @@ connection.onCompletion((params) => {
             { label: "waitFor", kind: node_1.CompletionItemKind.Method, detail: "Wait for", documentation: "Waits for the locator to satisfy the given state." },
             { label: "waitForElementState", kind: node_1.CompletionItemKind.Method, detail: "Wait for element state", documentation: "Waits for the element to reach the given state." },
             { label: "waitForSelector", kind: node_1.CompletionItemKind.Method, detail: "Wait for selector", documentation: "Waits for a selector relative to this locator." },
-            { label: "_locateFast", kind: node_1.CompletionItemKind.Method, detail: "Locate fast", documentation: "Fast locator lookup." },
-            { label: "_locate", kind: node_1.CompletionItemKind.Method, detail: "Locate", documentation: "Locator lookup." },
             { label: "filter", kind: node_1.CompletionItemKind.Method, detail: "Filter locator", documentation: "Filters matched elements." },
             { label: "nth", kind: node_1.CompletionItemKind.Method, detail: "Nth element", documentation: "Selects the nth matched element." },
             { label: "first", kind: node_1.CompletionItemKind.Method, detail: "First element", documentation: "Selects the first matched element." },
