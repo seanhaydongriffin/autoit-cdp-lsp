@@ -54,7 +54,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.autoit",
-                    "match": "\\b(If|Then|Else|EndIf|For|Next|While|WEnd|Func|EndFunc|Return|Switch|Case|EndSwitch|Do|Until|With|EndWith)\\b"
+                    "match": "(?i)\\b(If|Then|Else|EndIf|For|Next|While|WEnd|Func|EndFunc|Return|Switch|Case|EndSwitch|Do|Until|With|EndWith)\\b"
                 }
             ]
         },
@@ -63,7 +63,7 @@
             "patterns": [
                 {
                     "name": "constant.language.autoit",
-                    "match": "\\b(True|False|Null)\\b"
+                    "match": "(?i)\\b(True|False|Null)\\b"
                 }
             ]
         },
@@ -90,7 +90,7 @@
             "patterns": [
                 {
                     "name": "meta.preprocessor.autoit",
-                    "match": "#(include|include-once|Region|EndRegion|pragma)\\b"
+                    "match": "(?i)#(include|include-once|Region|EndRegion|pragma)\\b"
                 }
             ]
         },
