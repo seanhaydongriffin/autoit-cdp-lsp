@@ -157,7 +157,7 @@ export function activate(context: ExtensionContext) {
 
         //out.appendLine(`Spawning Au3Check: ${checkPath} ${filePath}`);
         if (fs.existsSync(checkPath)) {
-            streamProcess(checkPath, [filePath], (code) => {
+            streamProcess(checkPath, ["-q", filePath], (code) => {
                 // After check completes, run AutoIt regardless of exit code to match SciTe behavior
                 out.appendLine(`Spawning AutoIt: ${runnerPath} "${filePath}" (cwd: ${childOptions.cwd})`);
                 streamProcess(runnerPath, [filePath]);
