@@ -52,7 +52,7 @@ connection.onInitialize(() => {
     return {
         capabilities: {
             textDocumentSync: 1,
-            completionProvider: { triggerCharacters: ['.', '_', '$', '#'] },
+            completionProvider: { triggerCharacters: ['.', '_', '$', '#', '@'] },
             hoverProvider: true,
             signatureHelpProvider: { triggerCharacters: ['(', ','] }
         }
@@ -85,6 +85,112 @@ const AUTOIT_DIRECTIVES: { name: string; documentation: string }[] = [
     { name: "#pragma", documentation: "Sets compiler/runtime options (e.g. #pragma compile(...))." },
     { name: "#Region", documentation: "Starts a collapsible code region." },
     { name: "#RequireAdmin", documentation: "Requires the script to run with administrator rights." }
+];
+
+// Macros, offered when typing '@'. Casing follows the AutoIt help file.
+const AUTOIT_MACROS: { name: string; documentation: string }[] = [
+    { name: "@AppDataCommonDir", documentation: "Path to Application Data folder for all users." },
+    { name: "@AppDataDir", documentation: "Path to current user's Roaming Application Data folder." },
+    { name: "@AutoItExe", documentation: "Full path of the AutoIt executable currently running the script." },
+    { name: "@AutoItPID", documentation: "Process ID of the currently running script." },
+    { name: "@AutoItVersion", documentation: "Version number of AutoIt, e.g. 3.3.16.1." },
+    { name: "@AutoItX64", documentation: "Returns 1 if the script is running under the x64 version of AutoIt, else 0." },
+    { name: "@COM_EventObj", documentation: "Object the COM event is being fired on (only valid in a COM event function)." },
+    { name: "@CommonFilesDir", documentation: "Path to the Common Files folder." },
+    { name: "@Compiled", documentation: "Returns 1 if the script is a compiled executable or .a3x file, else 0." },
+    { name: "@ComputerName", documentation: "Computer's network name." },
+    { name: "@ComSpec", documentation: "Value of %ComSpec%, the command line interpreter (e.g. cmd.exe)." },
+    { name: "@CPUArch", documentation: "Returns \"X86\" or \"X64\" depending on the CPU architecture." },
+    { name: "@CR", documentation: "Carriage return, Chr(13)." },
+    { name: "@CRLF", documentation: "Carriage return + line feed, @CR & @LF — typical Windows line break." },
+    { name: "@DesktopCommonDir", documentation: "Path to the Desktop folder for all users." },
+    { name: "@DesktopDepth", documentation: "Colour depth of the primary display in bits per pixel." },
+    { name: "@DesktopDir", documentation: "Path to the current user's Desktop folder." },
+    { name: "@DesktopHeight", documentation: "Height of the primary display in pixels." },
+    { name: "@DesktopRefresh", documentation: "Refresh rate of the primary display in Hz." },
+    { name: "@DesktopWidth", documentation: "Width of the primary display in pixels." },
+    { name: "@DocumentsCommonDir", documentation: "Path to the Documents folder for all users." },
+    { name: "@error", documentation: "Error status set by the last function call. 0 means no error." },
+    { name: "@exitCode", documentation: "Exit code as set by the Exit keyword." },
+    { name: "@exitMethod", documentation: "How the script is exiting (0=natural, 1=Exit, 2=clicked exit, 3=logoff, 4=shutdown)." },
+    { name: "@extended", documentation: "Extended return information set by the last function call." },
+    { name: "@FavoritesCommonDir", documentation: "Path to the Favorites folder for all users." },
+    { name: "@FavoritesDir", documentation: "Path to the current user's Favorites folder." },
+    { name: "@GUI_CtrlHandle", documentation: "Handle of the last clicked control (GUI OnEvent mode)." },
+    { name: "@GUI_CtrlId", documentation: "Control ID of the last clicked control (GUI OnEvent mode)." },
+    { name: "@GUI_DragFile", documentation: "Filename being dropped in a GUI drag & drop operation." },
+    { name: "@GUI_DragId", documentation: "Control ID the drag started from (GUI drag & drop)." },
+    { name: "@GUI_DropId", documentation: "Control ID the drop landed on (GUI drag & drop)." },
+    { name: "@GUI_WinHandle", documentation: "Handle of the GUI window the event occurred in (OnEvent mode)." },
+    { name: "@HomeDrive", documentation: "Drive letter of the drive containing the current user's home directory." },
+    { name: "@HomePath", documentation: "Directory part of the current user's home directory." },
+    { name: "@HomeShare", documentation: "Server and share name containing the current user's home directory." },
+    { name: "@HotKeyPressed", documentation: "Last hotkey pressed (set for HotKeySet functions)." },
+    { name: "@HOUR", documentation: "Current hour of day, 2 digits (00-23)." },
+    { name: "@IPAddress1", documentation: "IP address of the first network adapter." },
+    { name: "@IPAddress2", documentation: "IP address of the second network adapter." },
+    { name: "@IPAddress3", documentation: "IP address of the third network adapter." },
+    { name: "@IPAddress4", documentation: "IP address of the fourth network adapter." },
+    { name: "@KBLayout", documentation: "Code of the current keyboard layout." },
+    { name: "@LF", documentation: "Line feed, Chr(10)." },
+    { name: "@LocalAppDataDir", documentation: "Path to current user's Local Application Data folder." },
+    { name: "@LogonDNSDomain", documentation: "Logon DNS domain." },
+    { name: "@LogonDomain", documentation: "Logon domain." },
+    { name: "@LogonServer", documentation: "Logon server." },
+    { name: "@MDAY", documentation: "Current day of month, 2 digits (01-31)." },
+    { name: "@MIN", documentation: "Current minute, 2 digits (00-59)." },
+    { name: "@MON", documentation: "Current month, 2 digits (01-12)." },
+    { name: "@MSEC", documentation: "Current millisecond, 3 digits (000-999)." },
+    { name: "@MUILang", documentation: "Language of the OS multi-language user interface." },
+    { name: "@MyDocumentsDir", documentation: "Path to the current user's My Documents folder." },
+    { name: "@NumParams", documentation: "Number of parameters used to call the current user-defined function." },
+    { name: "@OSArch", documentation: "Returns \"X86\", \"IA64\" or \"X64\" depending on the OS architecture." },
+    { name: "@OSBuild", documentation: "Build number of the operating system." },
+    { name: "@OSLang", documentation: "Language code of the operating system." },
+    { name: "@OSServicePack", documentation: "Service pack of the operating system." },
+    { name: "@OSType", documentation: "Returns \"WIN32_NT\" for NT-based Windows." },
+    { name: "@OSVersion", documentation: "OS version, e.g. \"WIN_11\", \"WIN_10\"." },
+    { name: "@ProgramFilesDir", documentation: "Path to the Program Files folder." },
+    { name: "@ProgramsCommonDir", documentation: "Path to the Start Menu Programs folder for all users." },
+    { name: "@ProgramsDir", documentation: "Path to the current user's Start Menu Programs folder." },
+    { name: "@ScriptDir", documentation: "Directory containing the running script (no trailing backslash)." },
+    { name: "@ScriptFullPath", documentation: "Full path of the running script, @ScriptDir & \"\\\" & @ScriptName." },
+    { name: "@ScriptLineNumber", documentation: "Line number of the script currently being executed." },
+    { name: "@ScriptName", documentation: "Filename of the running script." },
+    { name: "@SEC", documentation: "Current second, 2 digits (00-59)." },
+    { name: "@StartMenuCommonDir", documentation: "Path to the Start Menu folder for all users." },
+    { name: "@StartMenuDir", documentation: "Path to the current user's Start Menu folder." },
+    { name: "@StartupCommonDir", documentation: "Path to the Startup folder for all users." },
+    { name: "@StartupDir", documentation: "Path to the current user's Startup folder." },
+    { name: "@SW_DISABLE", documentation: "Window state: disables the window." },
+    { name: "@SW_ENABLE", documentation: "Window state: enables the window." },
+    { name: "@SW_HIDE", documentation: "Window state: hides the window." },
+    { name: "@SW_LOCK", documentation: "Window state: locks the window to prevent repainting." },
+    { name: "@SW_MAXIMIZE", documentation: "Window state: activates and maximizes the window." },
+    { name: "@SW_MINIMIZE", documentation: "Window state: minimizes the window and activates the next window." },
+    { name: "@SW_RESTORE", documentation: "Window state: activates and restores the window to its original size and position." },
+    { name: "@SW_SHOW", documentation: "Window state: activates and shows the window in its current size and position." },
+    { name: "@SW_SHOWDEFAULT", documentation: "Window state: shows the window based on its startup settings." },
+    { name: "@SW_SHOWMAXIMIZED", documentation: "Window state: activates and shows the window maximized." },
+    { name: "@SW_SHOWMINIMIZED", documentation: "Window state: activates and shows the window minimized." },
+    { name: "@SW_SHOWMINNOACTIVE", documentation: "Window state: shows the window minimized without activating it." },
+    { name: "@SW_SHOWNA", documentation: "Window state: shows the window in its current state without activating it." },
+    { name: "@SW_SHOWNOACTIVATE", documentation: "Window state: shows the window in its most recent size and position without activating it." },
+    { name: "@SW_SHOWNORMAL", documentation: "Window state: activates and shows the window in its normal size and position." },
+    { name: "@SW_UNLOCK", documentation: "Window state: unlocks the window to allow repainting." },
+    { name: "@SystemDir", documentation: "Path to the Windows System32 (or SysWOW64) folder." },
+    { name: "@TAB", documentation: "Tab character, Chr(9)." },
+    { name: "@TempDir", documentation: "Path to the temporary files folder." },
+    { name: "@TRAY_ID", documentation: "Last clicked tray menu item identifier (tray OnEvent mode)." },
+    { name: "@TrayIconFlashing", documentation: "Returns 1 if the tray icon is flashing, else 0." },
+    { name: "@TrayIconVisible", documentation: "Returns 1 if the tray icon is visible, else 0." },
+    { name: "@UserName", documentation: "Username of the currently logged-on user." },
+    { name: "@UserProfileDir", documentation: "Path to the current user's profile folder." },
+    { name: "@WDAY", documentation: "Current day of week, 1 digit (1-7, Sunday = 1)." },
+    { name: "@WindowsDir", documentation: "Path to the Windows folder." },
+    { name: "@WorkingDir", documentation: "Current working directory (no trailing backslash)." },
+    { name: "@YDAY", documentation: "Current day of year, 3 digits (001-366)." },
+    { name: "@YEAR", documentation: "Current year, 4 digits." }
 ];
 
 // Hand-maintained functions and keywords. These override same-named entries parsed from au3.api.
@@ -588,6 +694,24 @@ connection.onCompletion((params) => {
             documentation: d.documentation,
             filterText: d.name,
             textEdit: TextEdit.replace(range, d.name)
+        }));
+    }
+
+    // IntelliSense for @ macros. As with directives, the textEdit must span
+    // the '@' since it is not part of VS Code's word pattern.
+    const macroMatch = /@[A-Za-z0-9_]*$/.exec(before);
+    if (macroMatch) {
+        const range = {
+            start: doc.positionAt(offset - macroMatch[0].length),
+            end: doc.positionAt(offset)
+        };
+        return AUTOIT_MACROS.map(m => ({
+            label: m.name,
+            kind: CompletionItemKind.Constant,
+            detail: `${m.name} (macro)`,
+            documentation: m.documentation,
+            filterText: m.name,
+            textEdit: TextEdit.replace(range, m.name)
         }));
     }
 

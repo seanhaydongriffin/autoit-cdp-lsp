@@ -19,7 +19,7 @@
         },
         {
             "scope": ["comment.line.autoit", "comment.block.autoit"],
-            "settings": { "foreground": "#808080" }
+            "settings": { "foreground": "#808080", "fontStyle": "italic" }
         },
         {
             "scope": "variable.other.macro.autoit",
