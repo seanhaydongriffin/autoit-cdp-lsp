@@ -53,6 +53,10 @@
       {
         "command": "autoit-lsp.startAutoIt",
         "title": "Start AutoIt"
+      },
+      {
+        "command": "autoit-lsp.debugToConsole",
+        "title": "AutoIt: Debug to Console"
       }
     ],
     "keybindings": [
@@ -70,6 +74,11 @@
         "command": "autoit-lsp.stopScript",
         "key": "ctrl+break",
         "when": "editorTextFocus && editorLangId == autoit"
+      },
+      {
+        "command": "autoit-lsp.debugToConsole",
+        "key": "alt+d",
+        "when": "editorTextFocus && editorLangId == autoit && editorHasSelection"
       }
     ],
     "grammars": [

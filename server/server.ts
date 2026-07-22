@@ -52,7 +52,7 @@ connection.onInitialize(() => {
     return {
         capabilities: {
             textDocumentSync: 1,
-            completionProvider: { triggerCharacters: ['.', '_', '$'] },
+            completionProvider: { triggerCharacters: ['.', '_', '$', '#'] },
             hoverProvider: true,
             signatureHelpProvider: { triggerCharacters: ['(', ','] }
         }
@@ -66,6 +66,26 @@ connection.onHover(() => {
         contents: ["Hover info placeholder"]
     } as Hover;
 });
+
+// Preprocessor directives and special commands, offered when typing '#'.
+// AutoIt is case-insensitive but these use the casing shown in the help file.
+const AUTOIT_DIRECTIVES: { name: string; documentation: string }[] = [
+    { name: "#ce", documentation: "Ends a multi-line comment block (short form of #comments-end)." },
+    { name: "#comments-end", documentation: "Ends a multi-line comment block." },
+    { name: "#comments-start", documentation: "Starts a multi-line comment block." },
+    { name: "#cs", documentation: "Starts a multi-line comment block (short form of #comments-start)." },
+    { name: "#EndRegion", documentation: "Ends a collapsible code region." },
+    { name: "#forcedef", documentation: "Au3Check: force a variable to be treated as defined." },
+    { name: "#forceref", documentation: "Au3Check: force a variable to be treated as referenced." },
+    { name: "#ignorefunc", documentation: "Au3Check: ignore an undefined function name." },
+    { name: "#include", documentation: "Includes a file in the current script." },
+    { name: "#include-once", documentation: "Ensures the current file is only included once." },
+    { name: "#NoTrayIcon", documentation: "Hides the AutoIt tray icon while the script runs." },
+    { name: "#OnAutoItStartRegister", documentation: "Registers a function to be called when AutoIt starts." },
+    { name: "#pragma", documentation: "Sets compiler/runtime options (e.g. #pragma compile(...))." },
+    { name: "#Region", documentation: "Starts a collapsible code region." },
+    { name: "#RequireAdmin", documentation: "Requires the script to run with administrator rights." }
+];
 
 // Hand-maintained functions and keywords. These override same-named entries parsed from au3.api.
 const AUTOIT_FUNCTIONS: FunctionSignature[] = [
@@ -550,6 +570,26 @@ connection.onCompletion((params) => {
     const text = doc.getText();
     const offset = doc.offsetAt(params.position);
     const before = text.slice(0, offset);
+
+    // IntelliSense for # preprocessor directives / special commands.
+    // The textEdit must span the '#' too: it is not part of VS Code's word
+    // pattern, so without an explicit range the '#' would be left in place
+    // and the insert would produce '##include'.
+    const directiveMatch = /#[A-Za-z-]*$/.exec(before);
+    if (directiveMatch) {
+        const range = {
+            start: doc.positionAt(offset - directiveMatch[0].length),
+            end: doc.positionAt(offset)
+        };
+        return AUTOIT_DIRECTIVES.map(d => ({
+            label: d.name,
+            kind: CompletionItemKind.Keyword,
+            detail: `${d.name} (directive)`,
+            documentation: d.documentation,
+            filterText: d.name,
+            textEdit: TextEdit.replace(range, d.name)
+        }));
+    }
 
     // IntelliSense for Locator object methods after .locator(...).
     if (/\.locator\([^)]*\)\.$/i.test(before)) {

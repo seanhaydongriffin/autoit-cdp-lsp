@@ -40,6 +40,9 @@ const vscode_1 = require("vscode");
 const node_1 = require("vscode-languageclient/node");
 let client;
 let runningProcesses = [];
+// True from the moment F5 is accepted until the whole check+run chain has finished,
+// so a second F5 can't slip in (e.g. during the async document save before spawn)
+let runInProgress = false;
 const isWindows = process.platform === 'win32';
 function activate(context) {
     const serverModule = context.asAbsolutePath(path.join('out', 'server', 'server.js'));
@@ -83,16 +86,17 @@ function activate(context) {
     context.subscriptions.push(vscode_1.window.onDidChangeActiveTextEditor(updateStatusBarButtons));
     function killRunningProcesses() {
         if (runningProcesses.length === 0) {
-            out.appendLine('No AutoIt processes are currently running.');
+            //out.appendLine('No AutoIt processes are currently running.');
             return;
         }
-        out.appendLine('Stopping AutoIt processes...');
+        //out.appendLine('Stopping AutoIt processes...');
+        out.appendLine('>Forcing abrupt termination...');
         runningProcesses.forEach((proc) => {
             try {
                 if (isWindows) {
                     const kill = require('child_process').spawn('taskkill', ['/PID', proc.pid.toString(), '/T', '/F']);
                     kill.on('close', (code) => {
-                        out.appendLine(`taskkill exited with code ${code}`);
+                        //out.appendLine(`taskkill exited with code ${code}`);
                     });
                 }
                 else {
@@ -104,17 +108,26 @@ function activate(context) {
             }
         });
         runningProcesses = [];
+        runInProgress = false;
         updateStatusBarButtons();
     }
     // Register run command (F5)
     const runCmd = vscode_1.commands.registerCommand('autoit-lsp.runScript', async () => {
+        // Only one script at a time, matching SciTe behavior
+        if (runInProgress || runningProcesses.length > 0) {
+            vscode_1.window.showInformationMessage('An AutoIt script is already running. Stop it (Ctrl+Break) or wait for it to finish.');
+            return;
+        }
+        runInProgress = true;
         const editor = vscode_1.window.activeTextEditor;
         if (!editor) {
+            runInProgress = false;
             vscode_1.window.showErrorMessage('No active editor to run');
             return;
         }
         const doc = editor.document;
         if (doc.isUntitled) {
+            runInProgress = false;
             vscode_1.window.showErrorMessage('Please save the script before running.');
             return;
         }
@@ -149,11 +162,18 @@ function activate(context) {
                 p.stderr.on('data', (chunk) => out.append(chunk.toString()));
                 p.on('error', (err) => out.appendLine(`Failed to start ${cmd}: ${err.message}`));
                 p.on('close', (code) => {
-                    out.appendLine(`${path.basename(cmd)} exited with code ${code}`);
+                    //out.appendLine(`${path.basename(cmd)} exited with code ${code}`);
+                    //if (path.basename(cmd) == "autoit3_x64.exe") out.appendLine(`>Exit code: ${code}`);
+                    out.appendLine(`>Exit code: ${code}`);
                     runningProcesses = runningProcesses.filter((proc) => proc !== p);
                     updateStatusBarButtons();
                     if (onClose)
                         onClose(code);
+                    // onClose may have spawned a follow-up process (check -> run);
+                    // only release the run lock once the chain has fully drained
+                    if (runningProcesses.length === 0) {
+                        runInProgress = false;
+                    }
                 });
                 return p;
             }
@@ -161,13 +181,20 @@ function activate(context) {
                 out.appendLine(`Error spawning ${cmd}: ${e.message}`);
                 if (onClose)
                     onClose?.(1);
+                if (runningProcesses.length === 0) {
+                    runInProgress = false;
+                }
                 return null;
             }
         }
         //out.appendLine(`Spawning Au3Check: ${checkPath} ${filePath}`);
         if (fs.existsSync(checkPath)) {
             streamProcess(checkPath, ["-q", filePath], (code) => {
-                // After check completes, run AutoIt regardless of exit code to match SciTe behavior
+                // Only run the script if Au3Check passed, matching SciTe behavior
+                if (code === 2) {
+                    out.appendLine(`!>Au3Check ended with errors. Script not run.`);
+                    return;
+                }
                 out.appendLine(`Spawning AutoIt: ${runnerPath} "${filePath}" (cwd: ${childOptions.cwd})`);
                 streamProcess(runnerPath, [filePath]);
             });
@@ -198,6 +225,26 @@ function activate(context) {
         killRunningProcesses();
     });
     context.subscriptions.push(stopCmd);
+    // Register 'Debug to Console' command (Alt+D): inserts a ConsoleWrite debug line
+    // below the selection, mimicking SciTe's debug-to-console helper
+    const debugConsoleCmd = vscode_1.commands.registerCommand('autoit-lsp.debugToConsole', async () => {
+        const editor = vscode_1.window.activeTextEditor;
+        if (!editor || editor.document.languageId !== 'autoit') {
+            return;
+        }
+        const text = editor.document.getText(editor.selection).trim();
+        if (!text) {
+            vscode_1.window.showInformationMessage('Highlight an expression to debug first.');
+            return;
+        }
+        const line = editor.document.lineAt(editor.selection.end.line);
+        const indent = line.text.match(/^\s*/)?.[0] ?? '';
+        const debugLine = `${indent}ConsoleWrite('@@ Debug(' & @ScriptLineNumber & ') : ${text} = ' & ${text} & @CRLF & '>Error code: ' & @error & @CRLF)`;
+        await editor.edit((editBuilder) => {
+            editBuilder.insert(line.range.end, '\n' + debugLine);
+        });
+    });
+    context.subscriptions.push(debugConsoleCmd);
 }
 function deactivate() {
     if (!client) {

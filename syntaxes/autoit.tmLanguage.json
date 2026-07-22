@@ -16,6 +16,14 @@
         "comments": {
             "patterns": [
                 {
+                    "name": "comment.block.autoit",
+                    "begin": "(?i)^\\s*#(cs|comments-start)\\b",
+                    "end": "(?i)^\\s*#(ce|comments-end)\\b.*",
+                    "patterns": [
+                        { "include": "#comments" }
+                    ]
+                },
+                {
                     "name": "comment.line.autoit",
                     "match": ";.*$"
                 }

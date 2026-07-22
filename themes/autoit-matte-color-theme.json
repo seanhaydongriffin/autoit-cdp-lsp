@@ -18,7 +18,7 @@
             "settings": { "foreground": "#D16D6D" }
         },
         {
-            "scope": "comment.line.autoit",
+            "scope": ["comment.line.autoit", "comment.block.autoit"],
             "settings": { "foreground": "#808080" }
         },
         {
