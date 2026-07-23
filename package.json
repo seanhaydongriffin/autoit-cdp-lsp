@@ -57,6 +57,10 @@
       {
         "command": "autoit-lsp.debugToConsole",
         "title": "AutoIt: Debug to Console"
+      },
+      {
+        "command": "autoit-lsp.contextHelp",
+        "title": "AutoIt: Context Help"
       }
     ],
     "keybindings": [
@@ -79,6 +83,11 @@
         "command": "autoit-lsp.debugToConsole",
         "key": "alt+d",
         "when": "editorTextFocus && editorLangId == autoit && editorHasSelection"
+      },
+      {
+        "command": "autoit-lsp.contextHelp",
+        "key": "ctrl+f1",
+        "when": "editorTextFocus && editorLangId == autoit"
       }
     ],
     "grammars": [
@@ -99,6 +108,11 @@
           "type": "string",
           "default": "C:\\Program Files (x86)\\AutoIt3\\autoit3_x64.exe",
           "description": "Path to AutoIt runtime executable used to run scripts"
+        },
+        "autoit.helpPath": {
+          "type": "string",
+          "default": "C:\\Program Files (x86)\\AutoIt3\\AutoIt3Help.exe",
+          "description": "Path to AutoIt3Help.exe used for context help (Ctrl+F1)"
         }
       }
     },

@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { workspace, ExtensionContext, window, commands, StatusBarAlignment } from 'vscode';
+import { workspace, ExtensionContext, window, commands, StatusBarAlignment, env, Uri } from 'vscode';
 import {
     LanguageClient,
     LanguageClientOptions,
@@ -242,6 +242,46 @@ export function activate(context: ExtensionContext) {
         });
     });
     context.subscriptions.push(debugConsoleCmd);
+
+    // Register 'Context Help' command (Ctrl+F1): opens the AutoIt help file at the
+    // topic for the word under the cursor, mimicking SciTe's F1 context help.
+    // AutoIt3Help.exe resolves the keyword to the right CHM topic itself.
+    const contextHelpCmd = commands.registerCommand('autoit-lsp.contextHelp', async () => {
+        const editor = window.activeTextEditor;
+        if (!editor || editor.document.languageId !== 'autoit') {
+            return;
+        }
+        // Use the selection if there is one, otherwise the word under the cursor
+        // (including a leading @ or # for macros and directives)
+        let word = editor.document.getText(editor.selection).trim();
+        if (!word) {
+            const range = editor.document.getWordRangeAtPosition(editor.selection.active, /[#@]?[A-Za-z0-9_-]+/);
+            if (range) {
+                word = editor.document.getText(range);
+            }
+        }
+        if (!word) {
+            window.showInformationMessage('Place the cursor on an AutoIt keyword to look up help.');
+            return;
+        }
+
+        const cfg = workspace.getConfiguration('autoit');
+        const helpPath = cfg.get<string>('helpPath') || 'C:\\Program Files (x86)\\AutoIt3\\AutoIt3Help.exe';
+        const fs = require('fs');
+        if (fs.existsSync(helpPath)) {
+            const help = require('child_process').spawn(helpPath, [word], { detached: true, stdio: 'ignore' });
+            help.unref();
+        } else {
+            // Fall back to the online documentation
+            const url = word.startsWith('@')
+                ? 'https://www.autoitscript.com/autoit3/docs/macros.htm'
+                : word.startsWith('#')
+                    ? 'https://www.autoitscript.com/autoit3/docs/keywords.htm'
+                    : `https://www.autoitscript.com/autoit3/docs/functions/${word}.htm`;
+            env.openExternal(Uri.parse(url));
+        }
+    });
+    context.subscriptions.push(contextHelpCmd);
 }
 
 export function deactivate(): Thenable<void> | undefined {
