@@ -61,10 +61,84 @@ connection.onInitialize(() => {
 
 
 
-connection.onHover(() => {
-    return {
-        contents: ["Hover info placeholder"]
-    } as Hover;
+connection.onHover((params) => {
+    const doc = documents.get(params.textDocument.uri);
+    if (!doc) return null;
+
+    const text = doc.getText();
+    const offset = doc.offsetAt(params.position);
+
+    // Expand over identifier characters around the cursor
+    let start = offset;
+    while (start > 0 && /[A-Za-z0-9_]/.test(text[start - 1])) start--;
+    let end = offset;
+    while (end < text.length && /[A-Za-z0-9_]/.test(text[end])) end++;
+
+    // Directive names may contain '-' (e.g. #include-once): widen over '-' too
+    // and look back for the leading '#'.
+    let dirStart = start;
+    while (dirStart > 0 && /[A-Za-z0-9_-]/.test(text[dirStart - 1])) dirStart--;
+    if (dirStart > 0 && text[dirStart - 1] === '#') {
+        let dirEnd = end;
+        while (dirEnd < text.length && /[A-Za-z0-9_-]/.test(text[dirEnd])) dirEnd++;
+        const name = text.slice(dirStart - 1, dirEnd).toLowerCase();
+        const dir = AUTOIT_DIRECTIVES.find(d => d.name.toLowerCase() === name);
+        if (!dir) return null;
+        return {
+            contents: { kind: 'markdown', value: `**${dir.name}** *(directive)*\n\n${dir.documentation}` },
+            range: { start: doc.positionAt(dirStart - 1), end: doc.positionAt(dirEnd) }
+        } as Hover;
+    }
+
+    const word = text.slice(start, end);
+    if (!word) return null;
+    const key = word.toLowerCase();
+    const prev = start > 0 ? text[start - 1] : '';
+
+    // @macro
+    if (prev === '@') {
+        const macro = AUTOIT_MACROS.find(m => m.name.toLowerCase() === '@' + key);
+        if (!macro) return null;
+        return {
+            contents: { kind: 'markdown', value: `**${macro.name}** *(macro)*\n\n${macro.documentation}` },
+            range: { start: doc.positionAt(start - 1), end: doc.positionAt(end) }
+        } as Hover;
+    }
+
+    // $variable — no hover info (yet)
+    if (prev === '$') return null;
+
+    const range = { start: doc.positionAt(start), end: doc.positionAt(end) };
+
+    function signatureMarkdown(overloads: FunctionSignature[]): string {
+        return overloads.map(fn =>
+            '```autoit\n' + buildSignatureLabel(fn) + '\n```' + (fn.documentation ? '\n' + fn.documentation : '')
+        ).join('\n\n---\n\n');
+    }
+
+    // Dotted method call, e.g. $page.goto or .locator(...).click
+    if (prev === '.') {
+        const overloads = METHOD_SIGNATURES.get(key);
+        if (!overloads) return null;
+        return { contents: { kind: 'markdown', value: signatureMarkdown(overloads) }, range } as Hover;
+    }
+
+    // Built-in or hand-maintained function
+    const overloads = functionSignatures.get(key);
+    if (overloads && overloads.length > 0) {
+        return { contents: { kind: 'markdown', value: signatureMarkdown(overloads) }, range } as Hover;
+    }
+
+    // Keyword
+    const kw = AUTOIT_FUNCTIONS.find(f => f.keyword && f.name.toLowerCase() === key);
+    if (kw) {
+        return {
+            contents: { kind: 'markdown', value: `**${kw.name}** *(keyword)*${kw.documentation ? '\n\n' + kw.documentation : ''}` },
+            range
+        } as Hover;
+    }
+
+    return null;
 });
 
 // Preprocessor directives and special commands, offered when typing '#'.
