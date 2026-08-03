@@ -33,9 +33,14 @@
         "strings": {
             "patterns": [
                 {
+                    "comment": "Double-quoted string on a single line; \"\" is an escaped quote. AutoIt strings never span lines, so a single-line match can't bleed across the file.",
                     "name": "string.quoted.double.autoit",
-                    "begin": "\"",
-                    "end": "\""
+                    "match": "\"(?:\"\"|[^\"])*\""
+                },
+                {
+                    "comment": "Single-quoted string on a single line; '' is an escaped quote. Double quotes inside are literal content.",
+                    "name": "string.quoted.single.autoit",
+                    "match": "'(?:''|[^'])*'"
                 }
             ]
         },

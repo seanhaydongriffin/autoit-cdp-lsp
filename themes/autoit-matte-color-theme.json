@@ -14,7 +14,7 @@
             "settings": { "foreground": "#C468BC" }
         },
         {
-            "scope": "string.quoted.double.autoit",
+            "scope": ["string.quoted.double.autoit", "string.quoted.single.autoit"],
             "settings": { "foreground": "#D16D6D" }
         },
         {
