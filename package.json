@@ -10,7 +10,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onLanguage:autoit"
+    "onLanguage:autoit",
+    "workspaceContains:**/*.au3"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -61,6 +62,10 @@
       {
         "command": "autoit-lsp.contextHelp",
         "title": "AutoIt: Context Help"
+      },
+      {
+        "command": "autoit-lsp.openTestReport",
+        "title": "AutoIt: Open Test Report"
       }
     ],
     "keybindings": [
@@ -127,6 +132,18 @@
           "command": "autoit-lsp.stopScript",
           "when": "editorLangId == autoit",
           "group": "0_autoit@2"
+        }
+      ],
+      "testing/item/context": [
+        {
+          "command": "autoit-lsp.openTestReport",
+          "when": "controllerId == 'autoitCdpTests'"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "autoit-lsp.openTestReport",
+          "when": "false"
         }
       ]
     }

@@ -13,6 +13,7 @@
     },
     "include": [
         "extension.ts",
+        "testScanner.ts",
         "server/**/*.ts"
     ]
 

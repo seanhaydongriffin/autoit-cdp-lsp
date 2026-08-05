@@ -38,6 +38,7 @@ exports.deactivate = deactivate;
 const path = __importStar(require("path"));
 const vscode_1 = require("vscode");
 const node_1 = require("vscode-languageclient/node");
+const testScanner_1 = require("./testScanner");
 let client;
 let runningProcesses = [];
 // True from the moment F5 is accepted until the whole check+run chain has finished,
@@ -284,6 +285,253 @@ function activate(context) {
         }
     });
     context.subscriptions.push(contextHelpCmd);
+    // ---------------------------------------------------------------------------
+    // Test Explorer integration.
+    // Discovers top-level `With test("...")` blocks and runs a selected test by
+    // generating a temp script (shared setup + only that one block) in the script's
+    // own folder — so @ScriptDir and all relative dependencies resolve — then runs
+    // it as an ordinary script. Each test = its own process = its own exit code.
+    // ---------------------------------------------------------------------------
+    const testController = vscode_1.tests.createTestController('autoitCdpTests', 'AutoIt CDP Tests');
+    context.subscriptions.push(testController);
+    function fileItemFor(uri) {
+        const id = uri.toString();
+        let item = testController.items.get(id);
+        if (!item) {
+            item = testController.createTestItem(id, path.basename(uri.fsPath), uri);
+            testController.items.add(item);
+        }
+        return item;
+    }
+    function parseTextIntoItems(uri, text) {
+        const blocks = (0, testScanner_1.findTests)(text);
+        if (blocks.length === 0) {
+            testController.items.delete(uri.toString());
+            return;
+        }
+        const fileItem = fileItemFor(uri);
+        const seen = new Set();
+        for (const b of blocks) {
+            const childId = uri.toString() + '::' + b.name;
+            let child = fileItem.children.get(childId);
+            if (!child) {
+                child = testController.createTestItem(childId, b.name, uri);
+                fileItem.children.add(child);
+            }
+            child.range = new vscode_1.Range(b.startLine, 0, b.endLine, 0);
+            seen.add(childId);
+        }
+        const stale = [];
+        fileItem.children.forEach((c) => { if (!seen.has(c.id)) {
+            stale.push(c.id);
+        } });
+        stale.forEach((id) => fileItem.children.delete(id));
+    }
+    async function parseUriIntoItems(uri) {
+        try {
+            const bytes = await vscode_1.workspace.fs.readFile(uri);
+            parseTextIntoItems(uri, Buffer.from(bytes).toString('utf8'));
+        }
+        catch { /* unreadable - ignore */ }
+    }
+    // Initial discovery across the workspace
+    (async () => {
+        const files = await vscode_1.workspace.findFiles('**/*.au3', '**/node_modules/**');
+        for (const f of files) {
+            await parseUriIntoItems(f);
+        }
+    })();
+    // Keep the tree in sync with edits/creates/deletes
+    const au3Watcher = vscode_1.workspace.createFileSystemWatcher('**/*.au3');
+    au3Watcher.onDidCreate((uri) => parseUriIntoItems(uri));
+    au3Watcher.onDidChange((uri) => parseUriIntoItems(uri));
+    au3Watcher.onDidDelete((uri) => testController.items.delete(uri.toString()));
+    context.subscriptions.push(au3Watcher);
+    context.subscriptions.push(vscode_1.workspace.onDidSaveTextDocument((doc) => {
+        if (doc.languageId === 'autoit') {
+            parseTextIntoItems(doc.uri, doc.getText());
+        }
+    }));
+    function resolveRunnerPath() {
+        const cfg = vscode_1.workspace.getConfiguration('autoit');
+        const configured = cfg.get('runnerPath');
+        if (configured) {
+            return configured;
+        }
+        const fs = require('fs');
+        const default32 = 'C:\\Program Files (x86)\\AutoIt3\\AutoIt3.exe';
+        const default64 = 'C:\\Program Files (x86)\\AutoIt3\\autoit3_x64.exe';
+        return fs.existsSync(default32) ? default32 : default64;
+    }
+    // Find the test's HTML report inside its test-results\<name> folder. The UDF's filename has
+    // changed over time (report.html -> "<name> test run.html"), so match any .html and take the
+    // newest rather than hard-coding a name.
+    function findReportHtml(folder) {
+        const fs = require('fs');
+        let entries;
+        try {
+            entries = fs.readdirSync(folder);
+        }
+        catch {
+            return null;
+        }
+        const htmls = entries
+            .filter((f) => f.toLowerCase().endsWith('.html'))
+            .map((f) => path.join(folder, f));
+        if (htmls.length === 0) {
+            return null;
+        }
+        htmls.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+        return htmls[0];
+    }
+    // Flatten a requested item to the concrete tests underneath it (file item -> its tests).
+    function collectRunnable(item, acc) {
+        if (item.children.size > 0) {
+            item.children.forEach((c) => collectRunnable(c, acc));
+        }
+        else {
+            acc.push(item);
+        }
+    }
+    function runOneTest(test, run) {
+        return new Promise((resolve) => {
+            const fs = require('fs');
+            const { spawn } = require('child_process');
+            const uri = test.uri;
+            if (!uri) {
+                run.skipped(test);
+                return resolve();
+            }
+            let fileText;
+            try {
+                fileText = fs.readFileSync(uri.fsPath, 'utf8');
+            }
+            catch (e) {
+                run.failed(test, new vscode_1.TestMessage('Cannot read file: ' + e.message));
+                return resolve();
+            }
+            const single = (0, testScanner_1.buildSingleTestScript)(fileText, test.label);
+            if (single === null) {
+                run.failed(test, new vscode_1.TestMessage('Could not locate test block "' + test.label + '"'));
+                return resolve();
+            }
+            // Temp runner lives in the SAME folder as the source so @ScriptDir resolves.
+            const dir = path.dirname(uri.fsPath);
+            const tempPath = path.join(dir, '__attest_' + process.pid + '_' + Date.now() + '.au3');
+            try {
+                fs.writeFileSync(tempPath, single, 'utf8');
+            }
+            catch (e) {
+                run.failed(test, new vscode_1.TestMessage('Cannot write temp runner: ' + e.message));
+                return resolve();
+            }
+            const cleanup = () => { try {
+                fs.unlinkSync(tempPath);
+            }
+            catch { /* ignore */ } };
+            const started = Date.now();
+            out.appendLine('=== Running test: ' + test.label + ' ===');
+            let p;
+            try {
+                p = spawn(resolveRunnerPath(), [tempPath], { cwd: dir, env: process.env });
+            }
+            catch (e) {
+                run.failed(test, new vscode_1.TestMessage('Failed to launch runner: ' + e.message));
+                cleanup();
+                return resolve();
+            }
+            runningProcesses.push(p);
+            updateStatusBarButtons();
+            let output = '';
+            const onData = (chunk) => {
+                const s = chunk.toString();
+                output += s;
+                out.append(s);
+                run.appendOutput(s.replace(/\r?\n/g, '\r\n'));
+            };
+            p.stdout.on('data', onData);
+            p.stderr.on('data', onData);
+            p.on('error', (err) => {
+                run.failed(test, new vscode_1.TestMessage('Process error: ' + err.message));
+                runningProcesses = runningProcesses.filter((x) => x !== p);
+                updateStatusBarButtons();
+                cleanup();
+                resolve();
+            });
+            p.on('close', (code) => {
+                const dur = Date.now() - started;
+                // Result contract (interim): exit 0 = pass, anything else = fail.
+                // Refine once the UDF emits richer status/soft-fail codes.
+                if (code === 0) {
+                    run.passed(test, dur);
+                }
+                else {
+                    run.failed(test, new vscode_1.TestMessage('Test exited with code ' + code + '\n\n' + output.slice(-4000)), dur);
+                }
+                // Surface the test's HTML report as a clickable path in the run output.
+                const reportPath = findReportHtml(path.join(dir, 'test-results', test.label));
+                if (reportPath) {
+                    run.appendOutput('Report: ' + reportPath + '\r\n');
+                }
+                out.appendLine('>Exit code: ' + code);
+                runningProcesses = runningProcesses.filter((x) => x !== p);
+                updateStatusBarButtons();
+                cleanup();
+                resolve();
+            });
+        });
+    }
+    async function testRunHandler(request, token) {
+        if (runInProgress || runningProcesses.length > 0) {
+            vscode_1.window.showInformationMessage('An AutoIt script is already running. Stop it (Ctrl+Break) or wait for it to finish.');
+            return;
+        }
+        const queue = [];
+        if (request.include) {
+            request.include.forEach((t) => collectRunnable(t, queue));
+        }
+        else {
+            testController.items.forEach((t) => collectRunnable(t, queue));
+        }
+        if (queue.length === 0) {
+            return;
+        }
+        const run = testController.createTestRun(request);
+        // Cancelling the run kills the in-flight test process (reuses the Stop machinery).
+        const cancelSub = token.onCancellationRequested(() => killRunningProcesses());
+        runInProgress = true;
+        updateStatusBarButtons();
+        out.clear();
+        out.show(true);
+        // Sequential — the tests share the same real ADS backend/session.
+        for (const test of queue) {
+            if (token.isCancellationRequested) {
+                run.skipped(test);
+                continue;
+            }
+            run.started(test);
+            await runOneTest(test, run);
+        }
+        runInProgress = false;
+        updateStatusBarButtons();
+        cancelSub.dispose();
+        run.end();
+    }
+    testController.createRunProfile('Run', vscode_1.TestRunProfileKind.Run, testRunHandler, true);
+    // Right-click a test in the Explorer -> open its HTML report in the default browser.
+    const openReportCmd = vscode_1.commands.registerCommand('autoit-lsp.openTestReport', async (item) => {
+        if (!item || !item.uri || item.children.size > 0) {
+            vscode_1.window.showInformationMessage('Right-click a single test to open its report.');
+            return;
+        }
+        const reportPath = findReportHtml(path.join(path.dirname(item.uri.fsPath), 'test-results', item.label));
+        if (!reportPath) {
+            vscode_1.window.showInformationMessage('No report yet for "' + item.label + '". Run the test first.');
+            return;
+        }
+        await vscode_1.env.openExternal(vscode_1.Uri.file(reportPath));
+    });
+    context.subscriptions.push(openReportCmd);
 }
 function deactivate() {
     if (!client) {
