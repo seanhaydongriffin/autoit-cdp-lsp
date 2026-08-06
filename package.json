@@ -44,6 +44,10 @@
         "title": "Stop Script"
       },
       {
+        "command": "autoit-lsp.togglePause",
+        "title": "AutoIt: Pause/Resume Script"
+      },
+      {
         "command": "autoit-lsp.go",
         "title": "Go"
       },

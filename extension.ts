@@ -17,6 +17,9 @@ let runningProcesses: any[] = [];
 // True from the moment F5 is accepted until the whole check+run chain has finished,
 // so a second F5 can't slip in (e.g. during the async document save before spawn)
 let runInProgress = false;
+// True while the running AutoIt process has been suspended via the Pause button, so the
+// toggle button can show Resume and a new run can reset it. Only ever changed by togglePause.
+let scriptSuspended = false;
 const isWindows = process.platform === 'win32';
 
 export function activate(context: ExtensionContext) {
@@ -60,16 +63,35 @@ export function activate(context: ExtensionContext) {
     stopButton.tooltip = 'Stop running AutoIt scripts (Ctrl+Break)';
     stopButton.command = 'autoit-lsp.stopScript';
 
-    context.subscriptions.push(runButton, stopButton);
+    // Pause/Resume toggle: suspends/resumes just the AutoIt runner process (not its children),
+    // so the app being automated stays alive to inspect. Only shown while a script is running.
+    const pauseButton = window.createStatusBarItem(StatusBarAlignment.Left, 98);
+    pauseButton.command = 'autoit-lsp.togglePause';
+
+    context.subscriptions.push(runButton, stopButton, pauseButton);
 
     function updateStatusBarButtons() {
         const isAutoItEditor = window.activeTextEditor?.document.languageId === 'autoit';
-        if (isAutoItEditor || runningProcesses.length > 0) {
+        const isRunning = runningProcesses.length > 0;
+        if (isAutoItEditor || isRunning) {
             runButton.show();
             stopButton.show();
         } else {
             runButton.hide();
             stopButton.hide();
+        }
+        // Pause only makes sense against a live process
+        if (isRunning) {
+            if (scriptSuspended) {
+                pauseButton.text = '$(debug-continue) Resume';
+                pauseButton.tooltip = 'Resume the suspended AutoIt script';
+            } else {
+                pauseButton.text = '$(debug-pause) Pause';
+                pauseButton.tooltip = 'Suspend the running AutoIt script (leaves the automated app running so you can inspect it)';
+            }
+            pauseButton.show();
+        } else {
+            pauseButton.hide();
         }
     }
     updateStatusBarButtons();
@@ -99,7 +121,44 @@ export function activate(context: ExtensionContext) {
         });
         runningProcesses = [];
         runInProgress = false;
+        scriptSuspended = false;
         updateStatusBarButtons();
+    }
+
+    // Suspend or resume whole processes by PID. On Windows this mirrors Process Explorer's
+    // "Suspend" by P/Invoking NtSuspendProcess/NtResumeProcess from ntdll (no external tools).
+    function setSuspendState(pids: number[], suspend: boolean): Promise<void> {
+        return new Promise<void>((resolve) => {
+            const valid = pids.filter((p) => !!p);
+            if (valid.length === 0) { return resolve(); }
+            const { spawn } = require('child_process');
+            if (isWindows) {
+                const method = suspend ? 'NtSuspendProcess' : 'NtResumeProcess';
+                const ps =
+                    "$ErrorActionPreference='SilentlyContinue';" +
+                    "$m='[DllImport(\"ntdll.dll\")]public static extern uint NtSuspendProcess(IntPtr h);" +
+                    "[DllImport(\"ntdll.dll\")]public static extern uint NtResumeProcess(IntPtr h);';" +
+                    "$t=Add-Type -MemberDefinition $m -Name NtProc -Namespace Win -PassThru;" +
+                    "foreach($id in @(" + valid.join(',') + ")){$p=Get-Process -Id $id -ErrorAction SilentlyContinue;" +
+                    "if($p){[void]$t::" + method + "($p.Handle)}}";
+                try {
+                    const child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
+                    child.on('error', (err: any) => { out.appendLine('Pause/Resume failed: ' + err.message); resolve(); });
+                    child.on('close', () => resolve());
+                } catch (err: any) {
+                    out.appendLine('Pause/Resume failed: ' + err.message);
+                    resolve();
+                }
+            } else {
+                // POSIX: SIGSTOP/SIGCONT
+                try {
+                    for (const id of valid) { process.kill(id, suspend ? 'SIGSTOP' : 'SIGCONT'); }
+                } catch (err: any) {
+                    out.appendLine('Pause/Resume failed: ' + err.message);
+                }
+                resolve();
+            }
+        });
     }
 
     // Register run command (F5)
@@ -110,6 +169,7 @@ export function activate(context: ExtensionContext) {
             return;
         }
         runInProgress = true;
+        scriptSuspended = false;
 
         const editor = window.activeTextEditor;
         if (!editor) {
@@ -226,6 +286,23 @@ export function activate(context: ExtensionContext) {
         killRunningProcesses();
     });
     context.subscriptions.push(stopCmd);
+
+    // Pause/Resume: suspend or resume the running AutoIt process so you can inspect the app mid-run.
+    const togglePauseCmd = commands.registerCommand('autoit-lsp.togglePause', async () => {
+        const pids = runningProcesses.map((p) => p.pid).filter((pid) => !!pid);
+        if (pids.length === 0) {
+            window.showInformationMessage('No running AutoIt script to pause.');
+            return;
+        }
+        const suspend = !scriptSuspended;
+        await setSuspendState(pids, suspend);
+        scriptSuspended = suspend;
+        out.appendLine(suspend
+            ? '>Suspended AutoIt process ' + pids.join(', ') + ' (app left running; click Resume to continue).'
+            : '>Resumed AutoIt process ' + pids.join(', ') + '.');
+        updateStatusBarButtons();
+    });
+    context.subscriptions.push(togglePauseCmd);
 
     // Register 'Debug to Console' command (Alt+D): inserts a ConsoleWrite debug line
     // below the selection, mimicking SciTe's debug-to-console helper
