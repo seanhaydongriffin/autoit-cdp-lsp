@@ -516,6 +516,114 @@ export function activate(context: ExtensionContext) {
         await env.openExternal(Uri.file(reportPath));
     });
     context.subscriptions.push(openReportCmd);
+
+    // Right-click test(s) in the Explorer -> copy their HTML reports into a folder you choose
+    // (handy for consolidating reports from many tests into one place). Supports multi-select:
+    // VS Code passes the focused item first and the full selection as the 2nd argument.
+    const copyReportCmd = commands.registerCommand('autoit-lsp.copyTestReport', async (...args: any[]) => {
+        // The Testing view passes each selected test as its own positional argument
+        // (not the (item, array) shape custom TreeViews use). Also tolerate an array arg
+        // and a lone item, so this works regardless of how the command is invoked.
+        const selection: TestItem[] = [];
+        for (const a of args) {
+            if (Array.isArray(a)) {
+                for (const x of a) { if (x) { selection.push(x); } }
+            } else if (a) {
+                selection.push(a);
+            }
+        }
+
+        // Flatten any file/suite nodes to their concrete tests, deduped (a parent and its
+        // child could both be in the selection).
+        const seen = new Set<string>();
+        const concreteTests: TestItem[] = [];
+        for (const sel of selection) {
+            const acc: TestItem[] = [];
+            collectRunnable(sel, acc);
+            for (const t of acc) {
+                if (t.uri && !seen.has(t.id)) { seen.add(t.id); concreteTests.push(t); }
+            }
+        }
+        if (concreteTests.length === 0) {
+            window.showInformationMessage('Select one or more tests to copy their reports.');
+            return;
+        }
+
+        const fs = require('fs');
+
+        // Resolve each test to its newest report (some may not have been run yet).
+        const resolved = concreteTests.map((t) => ({
+            label: t.label,
+            reportPath: findReportHtml(path.join(path.dirname(t.uri!.fsPath), 'test-results', t.label))
+        }));
+        const withReport = resolved.filter((r) => r.reportPath);
+        const missing = resolved.length - withReport.length;
+        if (withReport.length === 0) {
+            window.showInformationMessage('None of the selected tests have a report yet. Run them first.');
+            return;
+        }
+
+        // Pick the destination folder once, defaulting to the folder used last time.
+        const lastDir = context.globalState.get<string>('autoit-lsp.lastReportCopyDir');
+        const picked = await window.showOpenDialog({
+            canSelectFiles: false,
+            canSelectFolders: true,
+            canSelectMany: false,
+            openLabel: 'Copy report(s) here',
+            title: 'Copy Test Report(s) to folder',
+            defaultUri: lastDir ? Uri.file(lastDir) : undefined
+        });
+        if (!picked || picked.length === 0) { return; }
+        const destDir = picked[0].fsPath;
+
+        // Name each copy after its test so consolidated reports stay distinguishable
+        // (the source file is often just "report.html").
+        const jobs = withReport.map((r) => {
+            const safeLabel = r.label.replace(/[\\/:*?"<>|]/g, '_').trim() || 'report';
+            const name = safeLabel + '.html';
+            return { src: r.reportPath as string, dest: path.join(destDir, name), name };
+        });
+
+        // If any destinations already exist, ask once how to handle them.
+        const existing = jobs.filter((j) => fs.existsSync(j.dest));
+        let overwriteExisting = true;
+        if (existing.length > 0) {
+            const msg = existing.length === 1
+                ? '"' + existing[0].name + '" already exists in that folder.'
+                : existing.length + ' files already exist in that folder.';
+            const choice = await window.showWarningMessage(msg + ' Overwrite?', { modal: true }, 'Overwrite', 'Skip existing');
+            if (choice === undefined) { return; }               // cancelled
+            overwriteExisting = (choice === 'Overwrite');
+        }
+
+        let copied = 0, skipped = 0, failed = 0;
+        let firstCopied: string | undefined;
+        for (const j of jobs) {
+            if (fs.existsSync(j.dest) && !overwriteExisting) { skipped++; continue; }
+            try {
+                fs.copyFileSync(j.src, j.dest);
+                copied++;
+                if (!firstCopied) { firstCopied = j.dest; }
+            } catch {
+                failed++;
+            }
+        }
+
+        context.globalState.update('autoit-lsp.lastReportCopyDir', destDir);
+
+        const parts = ['Copied ' + copied + ' report' + (copied === 1 ? '' : 's') + ' to ' + destDir];
+        if (skipped) { parts.push(skipped + ' skipped (already existed)'); }
+        if (missing) { parts.push(missing + ' had no report'); }
+        if (failed) { parts.push(failed + ' failed'); }
+        const summary = parts.join('. ') + '.';
+
+        const revealTarget = firstCopied || destDir;
+        const reveal = await window.showInformationMessage(summary, 'Reveal');
+        if (reveal === 'Reveal') {
+            await commands.executeCommand('revealFileInOS', Uri.file(revealTarget));
+        }
+    });
+    context.subscriptions.push(copyReportCmd);
 }
 
 export function deactivate(): Thenable<void> | undefined {

@@ -66,6 +66,10 @@
       {
         "command": "autoit-lsp.openTestReport",
         "title": "AutoIt: Open Test Report"
+      },
+      {
+        "command": "autoit-lsp.copyTestReport",
+        "title": "AutoIt: Copy Test Report"
       }
     ],
     "keybindings": [
@@ -137,12 +141,22 @@
       "testing/item/context": [
         {
           "command": "autoit-lsp.openTestReport",
-          "when": "controllerId == 'autoitCdpTests'"
+          "when": "controllerId == 'autoitCdpTests'",
+          "group": "autoitReport@1"
+        },
+        {
+          "command": "autoit-lsp.copyTestReport",
+          "when": "controllerId == 'autoitCdpTests'",
+          "group": "autoitReport@2"
         }
       ],
       "commandPalette": [
         {
           "command": "autoit-lsp.openTestReport",
+          "when": "false"
+        },
+        {
+          "command": "autoit-lsp.copyTestReport",
           "when": "false"
         }
       ]
