@@ -167,8 +167,13 @@ function findFuncRanges(text) {
 //   2. the selected test block,
 //   3. all function definitions (Func...EndFunc), wherever they appear.
 // Everything else — other test blocks, and any top-level statement between/after test blocks
-// (stray Exits, debug lines, test-specific setup that leaked outside a block) — is dropped, so a
+// (stray Exits, debug lines, test-specific setup that leaked outside a block) — is removed, so a
 // single-test run can't inherit cross-test dependencies. Returns null if keepName wasn't found.
+//
+// IMPORTANT: dropped lines are BLANKED (replaced with an empty line) rather than deleted, so the
+// output keeps the exact same line count and every kept line stays on its ORIGINAL line number.
+// That keeps @ScriptLineNumber (and Au3Check errors, etc.) reporting the same numbers the user
+// sees in the real script — the compaction that shifted them is what this avoids.
 function buildSingleTestScript(text, keepName) {
     const blocks = findTests(text);
     const selected = blocks.find(b => b.name === keepName);
@@ -181,15 +186,12 @@ function buildSingleTestScript(text, keepName) {
     const exitLines = new Set(findTopLevelExitLines(text));
     const inFunc = (i) => funcs.some(f => i >= f.start && i <= f.end);
     const inSelected = (i) => i >= selected.startLine && i <= selected.endLine;
-    const kept = [];
+    const out = [];
     for (let i = 0; i < lines.length; i++) {
-        if (exitLines.has(i)) {
-            continue;
-        } // never carry a standalone top-level Exit into a test run
-        if (i < firstTestStart || inSelected(i) || inFunc(i)) {
-            kept.push(lines[i]);
-        }
+        // never carry a standalone top-level Exit into a test run
+        const keep = !exitLines.has(i) && (i < firstTestStart || inSelected(i) || inFunc(i));
+        out.push(keep ? lines[i] : ''); // blank (not drop) so original line numbers are preserved
     }
-    return kept.join('\r\n');
+    return out.join('\r\n');
 }
 //# sourceMappingURL=testScanner.js.map
