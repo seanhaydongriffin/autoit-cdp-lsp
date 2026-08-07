@@ -36,7 +36,9 @@ import {
     CompletionItemKind,
     Hover,
     SignatureHelp,
-    TextEdit
+    TextEdit,
+    Location,
+    Definition
 } from 'vscode-languageserver/node';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
@@ -54,6 +56,7 @@ connection.onInitialize(() => {
             textDocumentSync: 1,
             completionProvider: { triggerCharacters: ['.', '_', '$', '#', '@'] },
             hoverProvider: true,
+            definitionProvider: true,
             signatureHelpProvider: { triggerCharacters: ['(', ','] }
         }
     };
@@ -139,6 +142,45 @@ connection.onHover((params) => {
     }
 
     return null;
+});
+
+// Go to Definition (F12): jump from a function-name usage to its `Func <name>` declaration.
+// Scoped to the current document — AutoIt is case-insensitive, so matching ignores case.
+// Include files are not followed (yet); if the Func isn't in this file we return nothing.
+connection.onDefinition((params): Definition | null => {
+    const doc = documents.get(params.textDocument.uri);
+    if (!doc) return null;
+
+    const text = doc.getText();
+    const offset = doc.offsetAt(params.position);
+
+    // Expand over identifier characters around the cursor to get the word under it.
+    let start = offset;
+    while (start > 0 && /[A-Za-z0-9_]/.test(text[start - 1])) start--;
+    let end = offset;
+    while (end < text.length && /[A-Za-z0-9_]/.test(text[end])) end++;
+
+    const word = text.slice(start, end);
+    if (!word) return null;
+
+    // Skip things that are never user functions: macros (@), variables ($), object
+    // methods (.), and directives (#foo). These aren't declared with `Func`.
+    const prev = start > 0 ? text[start - 1] : '';
+    if (prev === '@' || prev === '$' || prev === '.' || prev === '#') return null;
+
+    // Find `Func <word>` (optionally after leading whitespace). AutoIt names are word chars,
+    // so no regex escaping is needed; \b keeps us from matching a longer name with this prefix.
+    const re = new RegExp('^[\\t ]*Func[\\t ]+' + word + '\\b', 'im');
+    const m = re.exec(text);
+    if (!m) return null;
+
+    // The match ends exactly at the name (\b after it), so the name starts here:
+    const nameStart = m.index + m[0].length - word.length;
+    const location: Location = {
+        uri: doc.uri,
+        range: { start: doc.positionAt(nameStart), end: doc.positionAt(nameStart + word.length) }
+    };
+    return location;
 });
 
 // Preprocessor directives and special commands, offered when typing '#'.
