@@ -95,7 +95,7 @@
       {
         "command": "autoit-lsp.debugToConsole",
         "key": "alt+d",
-        "when": "editorTextFocus && editorLangId == autoit && editorHasSelection"
+        "when": "editorTextFocus && editorLangId == autoit"
       },
       {
         "command": "autoit-lsp.contextHelp",

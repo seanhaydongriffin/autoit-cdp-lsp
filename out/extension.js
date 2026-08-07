@@ -315,9 +315,17 @@ function activate(context) {
         if (!editor || editor.document.languageId !== 'autoit') {
             return;
         }
-        const text = editor.document.getText(editor.selection).trim();
+        let text = editor.document.getText(editor.selection).trim();
+        // No selection? If the cursor sits inside an AutoIt variable, debug that whole
+        // variable (leading '$' included) so a bare cursor is enough — no need to select.
         if (!text) {
-            vscode_1.window.showInformationMessage('Highlight an expression to debug first.');
+            const varRange = editor.document.getWordRangeAtPosition(editor.selection.active, /\$[A-Za-z_][A-Za-z0-9_]*/);
+            if (varRange) {
+                text = editor.document.getText(varRange);
+            }
+        }
+        if (!text) {
+            vscode_1.window.showInformationMessage('Select an expression, or place the cursor in a $variable, to debug.');
             return;
         }
         const line = editor.document.lineAt(editor.selection.end.line);
